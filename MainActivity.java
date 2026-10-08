@@ -1,72 +1,93 @@
-package com.example.wallpaper;
+package com.example.xml_json_parsing;
 
-import android.app.WallpaperManager;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.os.Bundle;
-import android.os.Handler;
-import android.widget.Button;
-import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
-import java.io.IOException;
-import java.util.Random;
+import android.os.Bundle;
+import android.widget.Button;
+import android.widget.TextView;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.xmlpull.v1.XmlPullParser;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 
 public class MainActivity extends AppCompatActivity {
-    Button start, stop;
-    Handler handler = new Handler();
-    WallpaperManager wallpaperManager;
-    Random random = new Random();
-    int[] wallpapers = {
-        R.drawable.image1,
-        R.drawable.image2,
-        R.drawable.image3,
-        R.drawable.image4
-    };
-
-    Runnable runnable = new Runnable() {
-        @Override
-        public void run() {
-            try {
-                int randomImage = wallpapers[random.nextInt(wallpapers.length)];
-                Bitmap bitmap = BitmapFactory.decodeResource(getResources(), randomImage);
-                wallpaperManager.setBitmap(bitmap);
-                Toast.makeText(MainActivity.this,
-                        "Wallpaper Changed",
-                        Toast.LENGTH_SHORT).show();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            handler.postDelayed(this, 6000);
-        }
-    };
+    Button btnXML, btnJSON;
+    TextView txtXML, txtJSON;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        wallpaperManager = WallpaperManager.getInstance(this);
-        start = findViewById(R.id.btnStart);
-        stop = findViewById(R.id.btnStop);
+        btnXML = findViewById(R.id.btnXML);
+        btnJSON = findViewById(R.id.btnJSON);
+        txtXML = findViewById(R.id.txtXML);
+        txtJSON = findViewById(R.id.txtJSON);
 
-        start.setOnClickListener(v -> {
-            handler.post(runnable);
-            Toast.makeText(this,
-                    "Wallpaper Changing Started",
-                    Toast.LENGTH_SHORT).show();
-        });
-
-        stop.setOnClickListener(v -> {
-            handler.removeCallbacks(runnable);
-            Toast.makeText(this,
-                    "Wallpaper Changing Stopped",
-                    Toast.LENGTH_SHORT).show();
-        });
+        btnXML.setOnClickListener(v -> parseXML());
+        btnJSON.setOnClickListener(v -> parseJSON());
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        handler.removeCallbacks(runnable);
+    private void parseXML() {
+        StringBuilder builder = new StringBuilder();
+        try {
+            XmlPullParser parser = getResources().getXml(R.xml.student);
+            int eventType = parser.getEventType();
+            String tag = "";
+            while (eventType != XmlPullParser.END_DOCUMENT) {
+                switch (eventType) {
+                    case XmlPullParser.START_TAG:
+                        tag = parser.getName();
+                        break;
+                    case XmlPullParser.TEXT:
+                        String text = parser.getText().trim();
+                        if (!text.isEmpty()) {
+                            if (tag.equals("name"))
+                                builder.append("Name : ").append(text).append("\n");
+                            else if (tag.equals("age"))
+                                builder.append("Age : ").append(text).append("\n");
+                            else if (tag.equals("department"))
+                                builder.append("Department : ").append(text).append("\n\n");
+                        }
+                        break;
+                }
+                eventType = parser.next();
+            }
+            txtXML.setText(builder.toString());
+        } catch (Exception e) {
+            txtXML.setText(e.toString());
+        }
+    }
+
+    private void parseJSON() {
+        try {
+            InputStream is = getResources().openRawResource(R.raw.student);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+            StringBuilder builder = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                builder.append(line);
+            }
+            JSONObject object = new JSONObject(builder.toString());
+            JSONArray array = object.getJSONArray("students");
+            StringBuilder output = new StringBuilder();
+            for (int i = 0; i < array.length(); i++) {
+                JSONObject student = array.getJSONObject(i);
+                output.append("Name : ")
+                        .append(student.getString("name"))
+                        .append("\n");
+                output.append("Age : ")
+                        .append(student.getInt("age"))
+                        .append("\n");
+                output.append("Department : ")
+                        .append(student.getString("department"))
+                        .append("\n\n");
+            }
+            txtJSON.setText(output.toString());
+        }
+        catch (Exception e) {
+            txtJSON.setText(e.toString());
+        }
     }
 }
